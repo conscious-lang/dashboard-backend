@@ -1,0 +1,11 @@
+[Unit]
+Description=Plumber API for Conscious Language
+
+[Service]
+ExecStart=/usr/bin/Rscript -e "library(plumber); pr_run(pr('plumber.R'), port=7033, host='0.0.0.0')"
+Restart=on-abnormal
+WorkingDirectory=/home/admin/Conscious_Language_API/
+User=admin
+
+[Install]
+WantedBy=multi-user.target
