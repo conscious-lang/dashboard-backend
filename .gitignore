@@ -24,8 +24,9 @@
 vignettes/*.html
 vignettes/*.pdf
 
-# OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
+# OAuth2 files
 .httr-oauth
+.secrets
 
 # knitr and R markdown default cache directories
 *_cache/
@@ -37,3 +38,8 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Renv cache
+renv/library/
+renv/python/
+renv/staging/
