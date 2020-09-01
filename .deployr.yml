@@ -1,0 +1,3 @@
+host: devstats
+source: /home/greg/DataProjects/Cons_Lang_API/
+target: /home/admin/Conscious_Language_API/
