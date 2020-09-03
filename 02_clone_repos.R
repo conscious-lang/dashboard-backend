@@ -4,12 +4,13 @@ library(pins)
 library(tidyverse)
 library(git2r)
 library(here)
+library(furrr)
 
 setwd(here())
 
 pins::board_register_local(name = 'conscious_lang', cache = '/tmp')
 
-projects <- pin_get('cl_projects', board = 'conscious_lang') %>%
+repos <- pin_get('cl_projects', board = 'conscious_lang') %>%
   # temporary, github only, other styles to come
   filter(str_detect(repo,'github.com')) %>%
   # split up the path so we can use it for things
@@ -28,48 +29,42 @@ projects <- pin_get('cl_projects', board = 'conscious_lang') %>%
   ) %>%
   select(url, org, repo)
 
-# Holding area
-if (!dir.exists(here('clones'))) { dir.create(here('clones'))}
+# We need to avoid conflicts when updating git repos *and* remove dirs no
+# longer listed in the spreadsheet. While we *could* do this with "git reset"
+# and "git clean" and then store every cloned dir and delete others, it's
+# altogether easier to delete "clones" and start again. 20Gb of bandwidth a week
+# is not so bad.
 
-# Create any necessary org dirs
-for (dir in unique(projects$org)) {
+# Clean the holding area
+if (dir.exists(here('clones'))) { unlink(here('clones'), recursive = T) }
+
+# Create necessary dirs
+dir.create(here('clones'))
+for (dir in unique(repos$org)) {
   if (!dir.exists(here('clones',dir))) { dir.create(here('clones',dir))}
 }
 
-# Wrapper to clone or pull depending on the repo presence
-pull_or_clone <- function(url, path) {
-  if (dir.exists(path)) {
-	  #TODO makde this a fetch/reset process to avoid conflicts
-    branch <- git2r::repository_head(path)$name
-    target <- glue::glue('origin/{branch}')
-    # Can't depth-1 fetch with git2r
-    setwd(here::here(path))
-    system2('git', c('fetch', '--no-tags', '--prune', '--depth', '1', '--quiet'))
-    system2('git', c('reset', '--hard', target))
-    system2('git', c('clean', '--force', '-d'))
-    setwd(here::here())
-  } else {
-    # Can't depth-1 clone with git2r
-    system2('git', c('clone', '--depth', '1', '--quiet', url, path))
-  }
+# Clone the repos
+clone_to_path <- function(url, path) {
+  # Can't depth-1 clone with git2r
+  system2('git', c('clone', '--depth', '1', '--quiet', url, path))
 }
 # Do it nicely, don't break the loop
-safe_pull_or_clone = possibly(pull_or_clone, otherwise = NA)
+safe_clone = possibly(clone_to_path, otherwise = NA)
 
-# Clone repos
-library(furrr)
+# Clone repos, parallel
 plan(multiprocess, workers=4)
-projects <- projects %>%
+repos <- repos %>%
   mutate(pull = future_map2(url,
                      str_c('clones',org,repo,sep='/'),
-                     safe_pull_or_clone,
+                     safe_clone,
                      .progress = TRUE))
 
 # Note the failures
-projects %>%
+repos %>%
   filter(is.na(pull)) %>%
   mutate(pull = dir.exists(here('clones',org,repo))) %>%
   select(url, pull) -> failures
 
 pin(failures,name='cl_fails', board = 'conscious_lang')
-pin(projects,name='cl_results', board = 'conscious_lang')
+pin(repos,name='cl_results', board = 'conscious_lang')
