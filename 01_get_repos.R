@@ -4,6 +4,7 @@
 library(pins)
 library(googledrive)
 library(tidyverse)
+source('lib.R')
 
 # Register to GDrive
 options(
@@ -18,11 +19,21 @@ drive_download(id, path = 'app_config.xlsx', overwrite = T)
 
 projects <- readxl::read_xlsx('./app_config.xlsx',sheet = 'Upstream Projects')
 
-projects[,4] %>%
-  rename(repo = 1) %>%
-  separate_rows(repo,sep=',') %>%
-  mutate(repo = str_trim(repo),
-         repo = str_remove(repo,'/$')) -> projects
+# Unwrap the org values
+orgs <- unlist_column(projects,5) %>%
+  rename(url = 1) -> orgs
+
+orgs %>%
+  do(map_dfr(.$url,fetch_repos_from_org)) -> org_repos
+
+single_repos <- unlist_column(projects,4) %>%
+  rename(repo = 1)
+
+exclusions <- unlist_column(projects,6) %>% pull(1)
+
+repos <- bind_rows(org_repos, single_repos) %>%
+  distinct(repo) %>%
+  filter(repo %nin% exclusions)
 
 pins::board_register_local(name = 'conscious_lang', cache = '/tmp')
-pin(projects,name='cl_projects', board = 'conscious_lang')
+pin(repos,name='cl_projects', board = 'conscious_lang')
