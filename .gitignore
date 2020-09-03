@@ -43,3 +43,4 @@ vignettes/*.pdf
 renv/library/
 renv/python/
 renv/staging/
+app_config.xlsx
