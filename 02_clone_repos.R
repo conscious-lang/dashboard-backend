@@ -38,11 +38,18 @@ for (dir in unique(projects$org)) {
 
 # Wrapper to clone or pull depending on the repo presence
 pull_or_clone <- function(url, path) {
-  # Do we need to switch to shallow clone?
   if (dir.exists(path)) {
 	  #TODO makde this a fetch/reset process to avoid conflicts
-    git2r::pull(path)
+    branch <- git2r::repository_head(path)$name
+    target <- glue::glue('origin/{branch}')
+    # Can't depth-1 fetch with git2r
+    setwd(here::here(path))
+    system2('git', c('fetch', '--no-tags', '--prune', '--depth', '1', '--quiet'))
+    system2('git', c('reset', '--hard', target))
+    system2('git', c('clean', '--force', '-d'))
+    setwd(here::here())
   } else {
+    # Can't depth-1 clone with git2r
     system2('git', c('clone', '--depth', '1', '--quiet', url, path))
   }
 }
