@@ -11,8 +11,6 @@ setwd(here())
 pins::board_register_local(name = 'conscious_lang', cache = '/tmp')
 
 repos <- pin_get('cl_projects', board = 'conscious_lang') %>%
-  # temporary, github only, other styles to come
-  filter(str_detect(repo,'github.com')) %>%
   # split up the path so we can use it for things
   mutate(url   = repo,
          path  = str_split(url,'/'),
@@ -20,13 +18,15 @@ repos <- pin_get('cl_projects', board = 'conscious_lang') %>%
                                     unlist() %>%
                                     length() })
   ) %>%
-  filter(parts == 5) %>% # habndle orgs (4 parts) later
-  mutate(org  = map_chr(path, ~{ unlist(.x) %>%
-                                   tail(2) %>%
-                                   head(1) }),
+  mutate(org  = map2_chr(path, parts, ~{ unlist(.x) %>%
+                                         head(.y) %>%
+                                         tail(2) %>%
+                                         head(1) }),
          repo = map_chr(path, ~{ unlist(.x) %>%
                                    tail(1) })
   ) %>%
+  filter(!is.na(org)) %>%
+  filter(!(org == '')) %>%
   select(url, org, repo)
 
 # We need to avoid conflicts when updating git repos *and* remove dirs no
