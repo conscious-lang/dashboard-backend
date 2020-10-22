@@ -11,7 +11,8 @@ h <- pins::pin_get('cl_hist',board='conscious_lang')
 d %>%
 	mutate(date = Sys.Date()) %>%
 	relocate(date,.before = url) %>%
-	bind_rows(h) -> h1
+	bind_rows(h) %>%
+	distinct(date, url, .keep_all = TRUE) -> h1
 
 h1 %>% pins::pin('cl_hist',board='conscious_lang')
 
