@@ -23,8 +23,12 @@ projects <- readxl::read_xlsx('./app_config.xlsx',sheet = 'Upstream Projects')
 orgs <- unlist_column(projects,5) %>%
   rename(url = 1) -> orgs
 
+safe_fetch <- purrr::possibly(fetch_repos_from_org, NA)
 orgs %>%
-  do(map_dfr(.$url,fetch_repos_from_org)) -> org_repos
+  mutate(list = map(url, safe_fetch)) %>%
+  na.omit() %>%
+  unnest(cols=c(list)) %>%
+  select(repo) -> org_repos
 
 single_repos <- unlist_column(projects,4) %>%
   rename(repo = 1)
@@ -32,6 +36,7 @@ single_repos <- unlist_column(projects,4) %>%
 exclusions <- unlist_column(projects,6) %>% pull(1)
 
 repos <- bind_rows(org_repos, single_repos) %>%
+  na.omit() %>%
   distinct(repo) %>%
   filter(repo %nin% exclusions)
 
